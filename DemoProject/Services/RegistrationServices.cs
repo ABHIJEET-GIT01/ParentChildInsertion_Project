@@ -40,17 +40,75 @@ namespace DemoProject.Services
             return MapDataTableToRegistrations(dt);
         }
 
-        private DataTable CreateExperiencesDataTable(List<Experience> experiences)
+        public async Task<RegistrationModel> GetRegistrationById(int id)
+        {
+            DataTable dt = await _registrationRepository.GetRegistrationById(id);
+
+            if (dt == null || dt.Rows.Count == 0)
+                return null;
+
+            return MapDataTableToRegistrations(dt).FirstOrDefault();
+        }
+
+        public async Task<Tuple<bool, string>> UpdateRegistration(RegistrationModel registrationModel)
+        {
+            if (registrationModel == null)
+                return new Tuple<bool, string>(false, Constants.InvalidData);
+
+            if (!IsValidRegistration(registrationModel))
+                return new Tuple<bool, string>(false, Constants.InvalidData);
+
+            DataTable dt = CreateExperiencesDataTable(registrationModel.Experiences, registrationModel.Id);
+
+            bool res = await _registrationRepository.UpdateRegistration(registrationModel, dt);
+
+            return new Tuple<bool, string>(res, res ? "Registration updated successfully!" : Constants.Error);
+        }
+
+        public async Task<Tuple<bool, string>> DeleteRegistration(int id)
+        {
+            try
+            {
+                bool res = await _registrationRepository.DeleteRegistration(id);
+                return new Tuple<bool, string>(res, res ? "Registration deleted successfully!" : Constants.Error);
+            }
+            catch (Exception ex)
+            {
+                return new Tuple<bool, string>(false, "Error deleting registration: " + ex.Message);
+            }
+        }
+
+        public async Task<int> GetTotalRegistrationCount()
+        {
+            return await _registrationRepository.GetTotalRegistrationCount();
+        }
+
+        private DataTable CreateExperiencesDataTable(List<Experience> experiences, int id = 0)
         {
             DataTable dt = new DataTable();
+
+            //if (id > 0)
+            //{
+            //    dt.Columns.Add("RegistrationId", typeof(int));
+            //}
+
             dt.Columns.Add("CompanyName", typeof(string));
             dt.Columns.Add("Years", typeof(int));
+            
 
             if (experiences != null)
             {
                 foreach (var item in experiences)
                 {
                     dt.Rows.Add(item.CompanyName, item.Years);
+
+                    //if (id > 0)
+                    //{
+                    //    dt.Rows.Add(id, item.CompanyName, item.Years);
+                    //}
+                    //else
+                    //{
+                    //}
                 }
             }
     

@@ -15,7 +15,15 @@ namespace DemoProject.Logics
         [Description("InsertRegistration")]
         InsertRegistration,
         [Description("GetAllRegistration")]
-        GetAllRegistration
+        GetAllRegistration,
+        [Description("GetRegistrationById")]
+        GetRegistrationById,
+        [Description("UpdateRegistration")]
+        UpdateRegistration,
+        [Description("DeleteRegistration")]
+        DeleteRegistration,
+        [Description("GetTotalRegistrationCount")]
+        GetTotalRegistrationCount
     }
     public static class EnumExtensions
     {

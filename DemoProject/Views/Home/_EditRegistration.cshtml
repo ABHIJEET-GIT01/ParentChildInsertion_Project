@@ -1,0 +1,97 @@
+@using Newtonsoft.Json;
+@using Newtonsoft.Json.Serialization;
+@model DemoProject.Models.RegistrationModel
+
+<div id="edit-modal" class="modal fade" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-user-edit"></i> Edit Registration
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="edit-registration-form" novalidate>
+                    <input type="hidden" id="edit-id" name="Id" />
+
+                    <!-- Name Field -->
+                    <div class="form-row">
+                        <label for="edit-name">Full Name <span class="text-danger">*</span></label>
+                        <div class="form-group">
+                            <input type="text" id="edit-name" name="Name" placeholder="Enter your full name" required />
+                        </div>
+                    </div>
+
+                    <!-- Email Field -->
+                    <div class="form-row">
+                        <label for="edit-email">Email Address <span class="text-danger">*</span></label>
+                        <div class="form-group">
+                            <input type="email" id="edit-email" name="Email" placeholder="example@domain.com" required />
+                        </div>
+                    </div>
+
+                    <!-- Address Field -->
+                    <div class="form-row">
+                        <label for="edit-address">Address <span class="text-danger">*</span></label>
+                        <div class="form-group">
+                            <input type="text" id="edit-address" name="Address" placeholder="Enter your address" required />
+                        </div>
+                    </div>
+
+                    <!-- Qualification Field -->
+                    <div class="form-row">
+                        <label for="edit-qualification">Qualification <span class="text-danger">*</span></label>
+                        <div class="form-group">
+                            <input type="text" id="edit-qualification" name="Qualification" placeholder="e.g., Bachelor of Technology" required />
+                        </div>
+                    </div>
+
+                    <!-- Technologies Section -->
+                    <div class="form-row">
+                        <label>Technologies <span class="text-danger">*</span></label>
+                        <div class="form-group">
+                            <div class="checkbox-group">
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="edit-tech-csharp" name="Technologies" value="C#" />
+                                    <label for="edit-tech-csharp">C#</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="edit-tech-js" name="Technologies" value="JavaScript" />
+                                    <label for="edit-tech-js">JavaScript</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="edit-tech-html" name="Technologies" value="HTML/CSS" />
+                                    <label for="edit-tech-html">HTML/CSS</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="edit-tech-python" name="Technologies" value="Python" />
+                                    <label for="edit-tech-python">Python</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Work Experience Section -->
+                    <div class="experience-section">
+                        <h6>
+                            <i class="fas fa-briefcase"></i> Work Experience <span class="text-danger">*</span>
+                        </h6>
+                        <div id="edit-experience-container"></div>
+                        <button class="btn btn-secondary" type="button" id="edit-add-experience">
+                            <i class="fas fa-plus-circle"></i> Add Experience
+                        </button>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+                <button type="button" class="btn btn-success" id="edit-submit-btn">
+                    <i class="fas fa-check-circle"></i> Update Registration
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
