@@ -22,7 +22,7 @@ namespace DemoProject.Controllers
         [HttpGet]
         public async Task<IActionResult> Index()
         {
-            var regData = await _registrationServices.GetAllRegistration(0, 100);
+            var regData = await _registrationServices.GetAllRegistration(0, 5);
             ViewBag.AllData = regData;
             return View();
         }
@@ -38,7 +38,7 @@ namespace DemoProject.Controllers
                     
                     if (res.Item1)
                     {
-                        var allData = await _registrationServices.GetAllRegistration(0, 100);
+                        var allData = await _registrationServices.GetAllRegistration(0, 5);
                         ViewBag.AllData = allData;
                         return Json(new { response = res.Item1, result = res.Item2, redirectUrl = Url.Action("Index", "Home") });
                     }
