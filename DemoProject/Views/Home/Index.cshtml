@@ -2,123 +2,318 @@
     Layout = "_Layout";
     ViewData["Title"] = "Registration Form";
 }
+@using Newtonsoft.Json;
+@using Newtonsoft.Json.Serialization;
 @model DemoProject.Models.RegistrationModel
 
 @section Scripts {
     <script>
-        $(document).ready(function () {
-            let experienceCount = 1;
+        let experienceCount = 1;
+        let editExperienceCount = 1;
 
-            // Add Experience Row
-            $('#add-experience').on('click', function () {
-                const newRow = '<div id="exp-' + experienceCount + '" class="experience-row">' +
-                    '<input type="text" class="company-name" name="Experiences[' + experienceCount + '].CompanyName" placeholder="Company Name" required />' +
-                    '<input type="number" class="years" name="Experiences[' + experienceCount + '].Years" placeholder="Years" min="0" max="70" required />' +
-                    '<button type="button" class="btn btn-sm btn-danger" onclick="removeExperience(' + experienceCount + ')">' +
-                    '<i class="fas fa-trash"></i> Delete</button></div>';
-                $("#experience-container").append(newRow);
-                experienceCount++;
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // ============ EDIT MODAL FUNCTIONS ============
+        window.openEditModal = function(id) {
+            $.ajax({
+                type: "GET",
+                url: "/Home/GetRegistration/" + id,
+                dataType: "json",
+                success: function(data) {
+                    if (data) {
+                        // Populate basic fields
+                        $('#edit-id').val(data.id);
+                        $('#edit-name').val(data.name || '');
+                        $('#edit-email').val(data.email || '');
+                        $('#edit-address').val(data.address || '');
+                        $('#edit-qualification').val(data.qualification || '');
+
+                        // Populate technologies
+                        $('input[name="Technologies"]').prop('checked', false);
+                        if (data.technologies && data.technologies.length > 0) {
+                            const techs = data.technologies.split(',').map(function(t) { return t.trim(); });
+                            techs.forEach(function(tech) {
+                                $('input[name="Technologies"][value="' + tech + '"]').prop('checked', true);
+                            });
+                        }
+
+                        // Clear and populate experiences
+                        $('#edit-experience-container').empty();
+                        editExperienceCount = 1;
+                        if (data.experiences && data.experiences.length > 0) {
+                            data.experiences.forEach(function(exp) {
+                                const expId = editExperienceCount;
+                                const newRow = '<div id="edit-exp-' + expId + '" class="experience-row">' +
+                                    '<input type="text" class="company-name" name="Experiences[' + expId + '].CompanyName" placeholder="Company Name" value="' + escapeHtml(exp.companyName) + '" required />' +
+                                    '<input type="number" class="years" name="Experiences[' + expId + '].Years" placeholder="Years" min="0" max="70" value="' + exp.years + '" required />' +
+                                    '<button type="button" class="btn btn-sm btn-danger" onclick="removeEditExperience(' + expId + ')">' +
+                                    '<i class="fas fa-trash"></i> Delete</button></div>';
+                                $("#edit-experience-container").append(newRow);
+                                editExperienceCount++;
+                            });
+                        }
+
+                        // Show modal
+                        const editModal = new bootstrap.Modal(document.getElementById('edit-modal'));
+                        editModal.show();
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error("Error:", error);
+                    alert('Error loading registration details');
+                }
+            });
+        };
+
+        window.removeEditExperience = function(id) {
+            $('#edit-exp-' + id).fadeOut(300, function() {
+                $(this).remove();
+            });
+        };
+
+        function validateEditForm() {
+            const name = $('#edit-name').val().trim();
+            const email = $('#edit-email').val().trim();
+            const address = $('#edit-address').val().trim();
+            const qualification = $('#edit-qualification').val().trim();
+
+            if (!name) {
+                alert('Please enter a valid Name');
+                return false;
+            }
+
+            if (!validateEmail(email)) {
+                alert('Please enter a valid Email address');
+                return false;
+            }
+
+            if (!address) {
+                alert('Please enter a valid Address');
+                return false;
+            }
+
+            if (!qualification) {
+                alert('Please enter a valid Qualification');
+                return false;
+            }
+
+            const technologies = $('input[name="Technologies"]:checked').map(function() {
+                return $(this).val();
+            }).get();
+
+            if (technologies.length === 0) {
+                alert('Please select at least one Technology');
+                return false;
+            }
+
+            const expCount = $('#edit-experience-container .experience-row').length;
+            if (expCount === 0) {
+                alert('Please add at least one Work Experience');
+                return false;
+            }
+
+            return true;
+        }
+
+        function submitEditForm() {
+            const technologies = $('input[name="Technologies"]:checked').map(function() {
+                return $(this).val();
+            }).get().join(', ');
+
+            const experiences = [];
+            $('#edit-experience-container .experience-row').each(function() {
+                experiences.push({
+                    CompanyName: $(this).find('.company-name').val(),
+                    Years: parseInt($(this).find('.years').val())
+                });
             });
 
-            // Remove Experience Row
-            window.removeExperience = function (id) {
-                $('#exp-' + id).fadeOut(300, function () {
-                    $(this).remove();
-                });
+            const formData = {
+                id: $('#edit-id').val(),
+                name: $('#edit-name').val().trim(),
+                email: $('#edit-email').val().trim(),
+                address: $('#edit-address').val().trim(),
+                qualification: $('#edit-qualification').val().trim(),
+                technologies: technologies,
+                experiences: experiences
             };
 
-            // Form Validation and Submission
-            $('#btn-submit').on('click', function () {
-                if (!validateForm()) return;
-                const formData = collectFormData();
-                submitRegistration(formData);
+            $.ajax({
+                type: "POST",
+                url: "/Home/Update",
+                data: JSON.stringify(formData),
+                dataType: "json",
+                contentType: "application/json",
+                success: function(response) {
+                    if (response.response) {
+                        alert(response.result);
+                        location.reload();
+                    } else {
+                        alert('Error: ' + response.result);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error("Error:", error);
+                    alert('An error occurred. Please try again.');
+                }
+            });
+        }
+
+        // ============ CREATE REGISTRATION FUNCTIONS ============
+        // Add Experience Row
+        $('#add-experience').on('click', function () {
+            const newRow = '<div id="exp-' + experienceCount + '" class="experience-row">' +
+                '<input type="text" class="company-name" name="Experiences[' + experienceCount + '].CompanyName" placeholder="Company Name" required />' +
+                '<input type="number" class="years" name="Experiences[' + experienceCount + '].Years" placeholder="Years" min="0" max="70" required />' +
+                '<button type="button" class="btn btn-sm btn-danger" onclick="removeExperience(' + experienceCount + ')">' +
+                '<i class="fas fa-trash"></i> Delete</button></div>';
+            $("#experience-container").append(newRow);
+            experienceCount++;
+        });
+
+        // Remove Experience Row
+        window.removeExperience = function (id) {
+            $('#exp-' + id).fadeOut(300, function () {
+                $(this).remove();
+            });
+        };
+
+        // Form Validation and Submission
+        $('#btn-submit').on('click', function () {
+            if (!validateForm()) return;
+            const formData = collectFormData();
+            submitRegistration(formData);
+        });
+
+        function validateForm() {
+            const name = $('#name').val().trim();
+            const email = $('#email').val().trim();
+            const address = $('#address').val().trim();
+            const qualification = $('#qualification').val().trim();
+
+            if (!name) {
+                showAlert('Please enter a valid Name', 'danger');
+                return false;
+            }
+
+            if (!validateEmail(email)) {
+                showAlert('Please enter a valid Email address', 'danger');
+                return false;
+            }
+
+            if (!address) {
+                showAlert('Please enter a valid Address', 'danger');
+                return false;
+            }
+
+            if (!qualification) {
+                showAlert('Please enter a valid Qualification', 'danger');
+                return false;
+            }
+
+            const technologies = $('input[name="Technologies"]:checked').map(function () {
+                return $(this).val();
+            }).get();
+
+            if (technologies.length === 0) {
+                showAlert('Please select at least one Technology', 'danger');
+                return false;
+            }
+
+            const expCount = $('.experience-row').length;
+            if (expCount === 0) {
+                showAlert('Please add at least one Work Experience', 'danger');
+                return false;
+            }
+
+            return true;
+        }
+
+        function validateEmail(email) {
+            const atChar = String.fromCharCode(64);
+            const atIndex = email.indexOf(atChar);
+            const dotIndex = email.lastIndexOf('.');
+            return atIndex > 0 && dotIndex > atIndex && dotIndex < email.length - 1;
+        }
+
+        function collectFormData() {
+            const technologies = $('input[name="Technologies"]:checked').map(function () {
+                return $(this).val();
+            }).get().join(', ');
+
+            const experiences = [];
+            $('.experience-row').each(function () {
+                experiences.push({
+                    CompanyName: $(this).find('.company-name').val(),
+                    Years: parseInt($(this).find('.years').val())
+                });
             });
 
-            function validateForm() {
-                const name = $('#name').val().trim();
-                const email = $('#email').val().trim();
-                const address = $('#address').val().trim();
-                const qualification = $('#qualification').val().trim();
+            return {
+                name: $('#name').val().trim(),
+                email: $('#email').val().trim(),
+                address: $('#address').val().trim(),
+                qualification: $('#qualification').val().trim(),
+                technologies: technologies,
+                experiences: experiences
+            };
+        }
 
-                if (!name) {
-                    showAlert('Please enter a valid Name', 'danger');
-                    return false;
+        function submitRegistration(data) {
+            $.ajax({
+                type: "POST",
+                url: "/Home/Index",
+                data: JSON.stringify(data),
+                dataType: "json",
+                contentType: "application/json",
+                success: function (response) {
+                    if (response.response) {
+                        showAlert(response.result, 'success');
+                        resetForm();
+                        setTimeout(function () { location.reload(); }, 1500);
+                    } else {
+                        showAlert('Error: ' + response.result, 'danger');
+                    }
+                },
+                error: function (xhr, status, error) {
+                    console.error("Error:", error);
+                    showAlert('An error occurred. Please try again.', 'danger');
                 }
+            });
+        }
 
-                if (!validateEmail(email)) {
-                    showAlert('Please enter a valid Email address', 'danger');
-                    return false;
-                }
+        function resetForm() {
+            document.querySelector('form').reset();
+            $('#experience-container').empty();
+            experienceCount = 1;
+        }
 
-                if (!address) {
-                    showAlert('Please enter a valid Address', 'danger');
-                    return false;
-                }
+        function showAlert(message, type) {
+            const alertClass = 'alert alert-' + type;
+            const alertHtml = '<div class="' + alertClass + '" role="alert">' + message + '</div>';
+            
+            $('.alert').remove();
+            $('form').prepend(alertHtml);
+            
+            setTimeout(function () {
+                $('.alert').fadeOut(300, function () { $(this).remove(); });
+            }, 5000);
+        }
 
-                if (!qualification) {
-                    showAlert('Please enter a valid Qualification', 'danger');
-                    return false;
-                }
-
-                const technologies = $('input[name="Technologies"]:checked').map(function () {
-                    return $(this).val();
-                }).get();
-
-                if (technologies.length === 0) {
-                    showAlert('Please select at least one Technology', 'danger');
-                    return false;
-                }
-
-                const expCount = $('.experience-row').length;
-                if (expCount === 0) {
-                    showAlert('Please add at least one Work Experience', 'danger');
-                    return false;
-                }
-
-                return true;
-            }
-
-            function validateEmail(email) {
-                // Check if email has the correct format
-                const atIndex = email.indexOf('@@');
-                const dotIndex = email.lastIndexOf('.');
-                return atIndex > 0 && dotIndex > atIndex && dotIndex < email.length - 1;
-            }
-
-            function collectFormData() {
-                const technologies = $('input[name="Technologies"]:checked').map(function () {
-                    return $(this).val();
-                }).get().join(', ');
-
-                const experiences = [];
-                $('.experience-row').each(function () {
-                    experiences.push({
-                        CompanyName: $(this).find('.company-name').val(),
-                        Years: parseInt($(this).find('.years').val())
-                    });
-                });
-
-                return {
-                    name: $('#name').val().trim(),
-                    email: $('#email').val().trim(),
-                    address: $('#address').val().trim(),
-                    qualification: $('#qualification').val().trim(),
-                    technologies: technologies,
-                    experiences: experiences
-                };
-            }
-
-            function submitRegistration(data) {
+        // Delete registration
+        window.deleteRegistration = function (id) {
+            if (confirm('Are you sure you want to delete this registration?')) {
                 $.ajax({
-                    type: "POST",
-                    url: "Home/Index",
-                    data: JSON.stringify(data),
+                    type: "DELETE",
+                    url: "/Home/Delete/" + id,
                     dataType: "json",
-                    contentType: "application/json",
                     success: function (response) {
                         if (response.response) {
                             showAlert(response.result, 'success');
-                            resetForm();
                             setTimeout(function () { location.reload(); }, 1500);
                         } else {
                             showAlert('Error: ' + response.result, 'danger');
@@ -130,24 +325,24 @@
                     }
                 });
             }
+        };
 
-            function resetForm() {
-                document.querySelector('form').reset();
-                $('#experience-container').empty();
-                experienceCount = 1;
-            }
+        // ============ INITIALIZE EDIT MODAL HANDLERS ============
+        $(document).ready(function() {
+            $('#edit-add-experience').on('click', function() {
+                const newRow = '<div id="edit-exp-' + editExperienceCount + '" class="experience-row">' +
+                    '<input type="text" class="company-name" name="Experiences[' + editExperienceCount + '].CompanyName" placeholder="Company Name" required />' +
+                    '<input type="number" class="years" name="Experiences[' + editExperienceCount + '].Years" placeholder="Years" min="0" max="70" required />' +
+                    '<button type="button" class="btn btn-sm btn-danger" onclick="removeEditExperience(' + editExperienceCount + ')">' +
+                    '<i class="fas fa-trash"></i> Delete</button></div>';
+                $("#edit-experience-container").append(newRow);
+                editExperienceCount++;
+            });
 
-            function showAlert(message, type) {
-                const alertClass = 'alert alert-' + type;
-                const alertHtml = '<div class="' + alertClass + '" role="alert">' + message + '</div>';
-                
-                $('.alert').remove();
-                $('form').prepend(alertHtml);
-                
-                setTimeout(function () {
-                    $('.alert').fadeOut(300, function () { $(this).remove(); });
-                }, 5000);
-            }
+            $('#edit-submit-btn').on('click', function() {
+                if (!validateEditForm()) return;
+                submitEditForm();
+            });
         });
     </script>
 }
@@ -258,6 +453,7 @@
                                 <th>Qualification</th>
                                 <th>Technologies</th>
                                 <th>Work Experience</th>
+                                <th class="text-center">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -304,11 +500,135 @@
                                             <span class="text-muted">No experience</span>
                                         }
                                     </td>
+                                    <td class="text-center">
+                                        <button type="button" class="btn btn-sm btn-primary" onclick="openEditModal(@registration.Id)" title="Edit">
+                                            <i class="fas fa-edit"></i> Edit
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-danger" onclick="deleteRegistration(@registration.Id)" title="Delete">
+                                            <i class="fas fa-trash"></i> Delete
+                                        </button>
+                                    </td>
                                 </tr>
                             }
                         </tbody>
                     </table>
                 </div>
+
+                <!-- Pagination -->
+                @if (ViewBag.TotalPages > 1)
+                {
+                    <nav aria-label="Page navigation">
+                        <ul class="pagination justify-content-center">
+                            @{
+                                int currentPage = ViewBag.CurrentPage;
+                                int totalPages = ViewBag.TotalPages;
+                            }
+
+                            @if (currentPage > 1)
+                            {
+                                <li class="page-item">
+                                    <a class="page-link" href="/Home/Index?page=1" aria-label="First">
+                                        <i class="fas fa-angle-double-left"></i> First
+                                    </a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="/Home/Index?page=@(currentPage - 1)" aria-label="Previous">
+                                        <i class="fas fa-angle-left"></i> Previous
+                                    </a>
+                                </li>
+                            }
+                            else
+                            {
+                                <li class="page-item disabled">
+                                    <span class="page-link"><i class="fas fa-angle-double-left"></i> First</span>
+                                </li>
+                                <li class="page-item disabled">
+                                    <span class="page-link"><i class="fas fa-angle-left"></i> Previous</span>
+                                </li>
+                            }
+
+                            @{
+                                int startPage = Math.Max(1, currentPage - 2);
+                                int endPage = Math.Min(totalPages, currentPage + 2);
+                            }
+
+                            @if (startPage > 1)
+                            {
+                                <li class="page-item">
+                                    <a class="page-link" href="/Home/Index?page=1">1</a>
+                                </li>
+                                if (startPage > 2)
+                                {
+                                    <li class="page-item disabled">
+                                        <span class="page-link">...</span>
+                                    </li>
+                                }
+                            }
+
+                            @for (int i = startPage; i <= endPage; i++)
+                            {
+                                if (i == currentPage)
+                                {
+                                    <li class="page-item active" aria-current="page">
+                                        <span class="page-link">
+                                            @i
+                                            <span class="visually-hidden">(current)</span>
+                                        </span>
+                                    </li>
+                                }
+                                else
+                                {
+                                    <li class="page-item">
+                                        <a class="page-link" href="/Home/Index?page=@i">@i</a>
+                                    </li>
+                                }
+                            }
+
+                            @if (endPage < totalPages)
+                            {
+                                if (endPage < totalPages - 1)
+                                {
+                                    <li class="page-item disabled">
+                                        <span class="page-link">...</span>
+                                    </li>
+                                }
+                                <li class="page-item">
+                                    <a class="page-link" href="/Home/Index?page=@totalPages">@totalPages</a>
+                                </li>
+                            }
+
+                            @if (currentPage < totalPages)
+                            {
+                                <li class="page-item">
+                                    <a class="page-link" href="/Home/Index?page=@(currentPage + 1)" aria-label="Next">
+                                        Next <i class="fas fa-angle-right"></i>
+                                    </a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="/Home/Index?page=@totalPages" aria-label="Last">
+                                        Last <i class="fas fa-angle-double-right"></i>
+                                    </a>
+                                </li>
+                            }
+                            else
+                            {
+                                <li class="page-item disabled">
+                                    <span class="page-link">Next <i class="fas fa-angle-right"></i></span>
+                                </li>
+                                <li class="page-item disabled">
+                                    <span class="page-link">Last <i class="fas fa-angle-double-right"></i></span>
+                                </li>
+                            }
+                        </ul>
+                    </nav>
+
+                    <div class="pagination-info text-center mt-3 mb-3">
+                        <p>
+                            Page <strong>@currentPage</strong> of <strong>@totalPages</strong> 
+                            | Total Records: <strong>@ViewBag.TotalRecords</strong>
+                        </p>
+                    </div>
+                }
             </div>
         </section>
     }
@@ -324,3 +644,6 @@
         </section>
     }
 </main>
+
+<!-- Include the partial view -->
+@await Html.PartialAsync("_EditRegistration")
