@@ -1,268 +1,326 @@
 ﻿@{
     Layout = "_Layout";
-    ViewData["Title"] = "Home Page";
+    ViewData["Title"] = "Registration Form";
 }
 @model DemoProject.Models.RegistrationModel
+
 @section Scripts {
     <script>
-        // JavaScript to add work experience fields dynamically
-
         $(document).ready(function () {
-            var experienceCount = 1;
+            let experienceCount = 1;
+
+            // Add Experience Row
             $('#add-experience').on('click', function () {
-                var newRow = '<div id="' + experienceCount + '" class="experience-row">' +
+                const newRow = '<div id="exp-' + experienceCount + '" class="experience-row">' +
                     '<input type="text" class="company-name" name="Experiences[' + experienceCount + '].CompanyName" placeholder="Company Name" required />' +
-                    '<input type="number" class="years" name="Experiences[' + experienceCount + '].Years" placeholder="Years" required />' +
-                    '<button type="button" class="btn btn-sm btn-danger float-right ml-2" onclick=\'$("#'+experienceCount+'").remove()\'><i class="fas fa - trash"></i> Delete</button>' +
-                    '</div>';
+                    '<input type="number" class="years" name="Experiences[' + experienceCount + '].Years" placeholder="Years" min="0" max="70" required />' +
+                    '<button type="button" class="btn btn-sm btn-danger" onclick="removeExperience(' + experienceCount + ')">' +
+                    '<i class="fas fa-trash"></i> Delete</button></div>';
                 $("#experience-container").append(newRow);
                 experienceCount++;
-            })
-
-            // function deleteElement(id) {
-            //     $('#'+id).remove();
-            // }
-            $('#experience-container').on('click', '.btn-danger', function () {
-                $(this).closest('.experience-row').remove();
             });
 
+            // Remove Experience Row
+            window.removeExperience = function (id) {
+                $('#exp-' + id).fadeOut(300, function () {
+                    $(this).remove();
+                });
+            };
+
+            // Form Validation and Submission
             $('#btn-submit').on('click', function () {
-                var _name = $('#name').val();
-                var _email = $('#email').val();
-                var _address = $('#address').val();
-                var _qualification = $('#qualification').val();
+                if (!validateForm()) return;
+                const formData = collectFormData();
+                submitRegistration(formData);
+            });
 
-                if (_name == '' || _name == null) {
-                    alert('Please enter valid Name');
-                    return;
+            function validateForm() {
+                const name = $('#name').val().trim();
+                const email = $('#email').val().trim();
+                const address = $('#address').val().trim();
+                const qualification = $('#qualification').val().trim();
+
+                if (!name) {
+                    showAlert('Please enter a valid Name', 'danger');
+                    return false;
                 }
 
-                if (_email == '' || _email == null) {
-                    alert('Please enter valid email');
-                    return;
+                if (!validateEmail(email)) {
+                    showAlert('Please enter a valid Email address', 'danger');
+                    return false;
                 }
 
-                if (_address == '' || _address == null) {
-                    alert('Please enter valid address');
-                    return;
+                if (!address) {
+                    showAlert('Please enter a valid Address', 'danger');
+                    return false;
                 }
 
-                if (_qualification == '' || _qualification == null) {
-                    alert('Please enter valid qualification');
-                    return;
+                if (!qualification) {
+                    showAlert('Please enter a valid Qualification', 'danger');
+                    return false;
                 }
-                // Use :checked selector to filter checked checkboxes
-                var _technologies = $('input[name="Technologies"]:checked').map(function () {
+
+                const technologies = $('input[name="Technologies"]:checked').map(function () {
                     return $(this).val();
                 }).get();
 
-                _technologies= _technologies.join(', ');
-                //console.log(_technologies);
-
-                if (_technologies.length < 1) {
-                    alert('Please select atleast one Technology');
-                    return;
+                if (technologies.length === 0) {
+                    showAlert('Please select at least one Technology', 'danger');
+                    return false;
                 }
 
-                var _experiences = [];
+                const expCount = $('.experience-row').length;
+                if (expCount === 0) {
+                    showAlert('Please add at least one Work Experience', 'danger');
+                    return false;
+                }
 
-                // Iterate through each experience row
+                return true;
+            }
+
+            function validateEmail(email) {
+                // Check if email has the correct format
+                const atIndex = email.indexOf('@@');
+                const dotIndex = email.lastIndexOf('.');
+                return atIndex > 0 && dotIndex > atIndex && dotIndex < email.length - 1;
+            }
+
+            function collectFormData() {
+                const technologies = $('input[name="Technologies"]:checked').map(function () {
+                    return $(this).val();
+                }).get().join(', ');
+
+                const experiences = [];
                 $('.experience-row').each(function () {
-                    var companyName = $(this).find('.company-name').val();
-                    var years = $(this).find('.years').val();
-
-                    // Create an object with the values and add it to the array
-                    var experience = {
-                        CompanyName: companyName,
-                        Years: years
-                    };
-
-                    _experiences.push(experience);
+                    experiences.push({
+                        CompanyName: $(this).find('.company-name').val(),
+                        Years: parseInt($(this).find('.years').val())
+                    });
                 });
-                // Log the array of checked values
 
-                if (_experiences.length < 1) {
-                    alert('Please add atleast one experience');
-                    return;
-                }
-
-                var dataObj = {
-                    name: _name,
-                    email: _email,
-                    address: _address,
-                    qualification: _qualification,
-                    technologies: _technologies,
-                    experiences: _experiences
+                return {
+                    name: $('#name').val().trim(),
+                    email: $('#email').val().trim(),
+                    address: $('#address').val().trim(),
+                    qualification: $('#qualification').val().trim(),
+                    technologies: technologies,
+                    experiences: experiences
                 };
+            }
 
+            function submitRegistration(data) {
                 $.ajax({
                     type: "POST",
                     url: "Home/Index",
-                    data: JSON.stringify(dataObj),  // Corrected data property
-                    dataType: "json",  // Corrected dataType property
+                    data: JSON.stringify(data),
+                    dataType: "json",
                     contentType: "application/json",
-                    success: function (data) {
-                        if (data.response) {
-                            var res = data.result;
-                            alert(res);
-                            // Reload page to show updated data
-                            location.reload();
+                    success: function (response) {
+                        if (response.response) {
+                            showAlert(response.result, 'success');
+                            resetForm();
+                            setTimeout(function () { location.reload(); }, 1500);
                         } else {
-                            alert('Error: ' + data.result);
+                            showAlert('Error: ' + response.result, 'danger');
                         }
                     },
-                    error: function (xhr, textStatus, errorThrown) {
-                        console.error("Error:", textStatus, errorThrown);
+                    error: function (xhr, status, error) {
+                        console.error("Error:", error);
+                        showAlert('An error occurred. Please try again.', 'danger');
                     }
                 });
+            }
 
-            })
-        })
+            function resetForm() {
+                document.querySelector('form').reset();
+                $('#experience-container').empty();
+                experienceCount = 1;
+            }
 
-
+            function showAlert(message, type) {
+                const alertClass = 'alert alert-' + type;
+                const alertHtml = '<div class="' + alertClass + '" role="alert">' + message + '</div>';
+                
+                $('.alert').remove();
+                $('form').prepend(alertHtml);
+                
+                setTimeout(function () {
+                    $('.alert').fadeOut(300, function () { $(this).remove(); });
+                }, 5000);
+            }
+        });
     </script>
 }
 
-<div class="col-sm-12 text-center">
+<main class="py-4">
+    <!-- Registration Form Section -->
+    <section class="form-section">
+        <div class="container">
+            <h1>
+                <i class="fas fa-user-plus"></i> Registration Form
+            </h1>
+            <p class="form-subtitle">Create your account and join our community</p>
 
-    <h1>Registration Form</h1>
-
-    <form method="post">
-        <div class="col-sm-12">
-            <div class="col-sm-5 divFloatleft">
-                <label for="name">Name:</label>
-            </div>
-            <div class="col-sm-5 divFloatleft">
-                <input type="text" id="name" name="Name" required />
-            </div>
-        </div>
-
-        <div class="col-sm-12">
-
-            <div class="col-sm-5 divFloatleft">
-                <label for="email">Email:</label>
-            </div>
-            <div class="col-sm-5 divFloatleft">
-                <input type="email" id="email" name="Email" required />
-            </div>
-        </div>
-
-        <div class="col-sm-12">
-
-            <div class="col-sm-5 divFloatleft">
-                <label for="address">Address:</label>
-            </div>
-            <div class="col-sm-5 divFloatleft">
-                <input type="text" id="address" name="Address" />
-            </div>
-        </div>
-
-        <div class="col-sm-12">
-            <div class="col-sm-5 divFloatleft">
-                <label for="qualification">Qualification:</label>
-            </div>
-            <div class="col-sm-5 divFloatleft">
-                <input type="text" id="qualification" name="Qualification" required />
-            </div>
-        </div>
-
-        <div class="col-sm-12">
-            <div class="col-sm-5 divFloatleft">
-                <label>Technologies:</label>
-            </div>
-            <div class="col-sm-5 divFloatleft">
-                <div class="divFloatleft">
-                    <input type="checkbox" name="Technologies" value="C#" /> C#
+            <form id="registration-form" method="post" novalidate>
+                <!-- Name Field -->
+                <div class="form-row">
+                    <label for="name">Full Name <span class="text-danger">*</span></label>
+                    <div class="form-group">
+                        <input type="text" id="name" name="Name" placeholder="Enter your full name" required />
+                    </div>
                 </div>
-                <div class="divFloatleft">
-                    <input type="checkbox" name="Technologies" value="JavaScript" /> JavaScript
-                </div>
-                <div class="divFloatleft">
-                    <input type="checkbox" name="Technologies" value="HTML/CSS" /> HTML/CSS
-                </div>
-                <div class="divFloatleft">
-                    <input type="checkbox" name="Technologies" value="Python" /> Python
-                </div>
-            </div>
-        </div>
-        <div>
-            <br />
-        </div>
 
-        <div class="col-sm-12 divFloatleft">
-            <div class="col-sm-12">
-                <h6>Work Experience</h6>
-            </div>
-            <div class="col-sm-12" id="experience-container">
-                <!-- JavaScript will dynamically add experience fields here -->
-            </div>
-            <button class="btn btn-secondary" type="button" id="add-experience">Add Experience</button>
-        </div>
+                <!-- Email Field -->
+                <div class="form-row">
+                    <label for="email">Email Address <span class="text-danger">*</span></label>
+                    <div class="form-group">
+                        <input type="email" id="email" name="Email" placeholder="example@domain.com" required />
+                    </div>
+                </div>
 
-        <div class="col-sm-12 divFloatleft">
-            <button class="btn btn-success" id="btn-submit" type="button">Submit</button>
-        </div>
-    </form>
-    @* @if (Model.Email != null)
-    {
+                <!-- Address Field -->
+                <div class="form-row">
+                    <label for="address">Address <span class="text-danger">*</span></label>
+                    <div class="form-group">
+                        <input type="text" id="address" name="Address" placeholder="Enter your address" required />
+                    </div>
+                </div>
 
-    } *@
+                <!-- Qualification Field -->
+                <div class="form-row">
+                    <label for="qualification">Qualification <span class="text-danger">*</span></label>
+                    <div class="form-group">
+                        <input type="text" id="qualification" name="Qualification" placeholder="e.g., Bachelor of Technology" required />
+                    </div>
+                </div>
+
+                <!-- Technologies Section -->
+                <div class="form-row">
+                    <label>Technologies <span class="text-danger">*</span></label>
+                    <div class="form-group">
+                        <div class="checkbox-group">
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="tech-csharp" name="Technologies" value="C#" />
+                                <label for="tech-csharp">C#</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="tech-js" name="Technologies" value="JavaScript" />
+                                <label for="tech-js">JavaScript</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="tech-html" name="Technologies" value="HTML/CSS" />
+                                <label for="tech-html">HTML/CSS</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="tech-python" name="Technologies" value="Python" />
+                                <label for="tech-python">Python</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Work Experience Section -->
+                <div class="experience-section">
+                    <h6>
+                        <i class="fas fa-briefcase"></i> Work Experience <span class="text-danger">*</span>
+                    </h6>
+                    <div id="experience-container"></div>
+                    <button class="btn btn-secondary" type="button" id="add-experience">
+                        <i class="fas fa-plus-circle"></i> Add Experience
+                    </button>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="form-submit-row">
+                    <span></span>
+                    <button class="btn btn-success" id="btn-submit" type="button">
+                        <i class="fas fa-check-circle"></i> Submit Registration
+                    </button>
+                </div>
+            </form>
+        </div>
+    </section>
+
+    <!-- Registrations Display Section -->
     @if (ViewBag.AllData != null && ((List<DemoProject.Models.RegistrationModel>)ViewBag.AllData).Count > 0)
     {
-        <h1>All Registrations</h1>
-        <table class="table table-striped table-bordered">
-            <thead class="table-dark">
-                <tr>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Address</th>
-                    <th>Qualification</th>
-                    <th>Technologies</th>
-                    <th>Work Experience</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var registration in (List<DemoProject.Models.RegistrationModel>)ViewBag.AllData)
-                {
-                    <tr>
-                        <td>@registration.Name</td>
-                        <td>@registration.Email</td>
-                        <td>@registration.Address</td>
-                        <td>@registration.Qualification</td>
-                        <td>@registration.Technologies</td>
-                        <td>
-                            @if (registration.Experiences != null && registration.Experiences.Count > 0)
+        <section class="registrations-section">
+            <div class="container">
+                <h2>All Registrations</h2>
+
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Address</th>
+                                <th>Qualification</th>
+                                <th>Technologies</th>
+                                <th>Work Experience</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var registration in (List<DemoProject.Models.RegistrationModel>)ViewBag.AllData)
                             {
-                                <table class="table table-sm">
-                                    <thead>
-                                        <tr>
-                                            <th>Company</th>
-                                            <th>Years</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @foreach (var experience in registration.Experiences)
+                                <tr>
+                                    <td>
+                                        <strong>@registration.Name</strong>
+                                    </td>
+                                    <td>
+                                        <a href="mailto:@registration.Email">@registration.Email</a>
+                                    </td>
+                                    <td>@registration.Address</td>
+                                    <td>@registration.Qualification</td>
+                                    <td>
+                                        @if (!string.IsNullOrEmpty(registration.Technologies))
                                         {
-                                            <tr>
-                                                <td>@experience.CompanyName</td>
-                                                <td>@experience.Years</td>
-                                            </tr>
+                                            <span class="badge bg-primary">@registration.Technologies</span>
                                         }
-                                    </tbody>
-                                </table>
+                                    </td>
+                                    <td>
+                                        @if (registration.Experiences != null && registration.Experiences.Count > 0)
+                                        {
+                                            <table class="nested-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Company</th>
+                                                        <th>Years</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @foreach (var experience in registration.Experiences)
+                                                    {
+                                                        <tr>
+                                                            <td>@experience.CompanyName</td>
+                                                            <td>@experience.Years</td>
+                                                        </tr>
+                                                    }
+                                                </tbody>
+                                            </table>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">No experience</span>
+                                        }
+                                    </td>
+                                </tr>
                             }
-                            else
-                            {
-                                <span class="text-muted">No experience</span>
-                            }
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
     }
     else
     {
-        <p class="text-muted">No registrations found.</p>
+        <section class="registrations-section">
+            <div class="container">
+                <div class="no-data">
+                    <div class="no-data-icon">📋</div>
+                    <p class="text-muted">No registrations found yet. Fill out and submit the form above to get started!</p>
+                </div>
+            </div>
+        </section>
     }
-</div>
+</main>
